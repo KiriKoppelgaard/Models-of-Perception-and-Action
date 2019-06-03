@@ -1,0 +1,116 @@
+---
+title: "Model of Perception and Action"
+author: "Kiri Koppelgaard"
+date: "June 3, 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r loading packages}
+###Loading packages
+library(pacman)
+p_load(ggplot2, tidyverse, signal)
+
+```
+
+#Load the data set and rename the columns to sample, time, x, y, z
+
+```{r loading data}
+###Loading data
+data <- read.table("Cognitive Science/4. Semester/Models for perception and action/Exam/Models_of_action_perception/timsigF_211_1_1_1_short.txt", sep = ",", header = FALSE)
+
+#Removing row names
+data <- data[2:5]
+
+```
+
+```{r renaming columns}
+names(data) <- c("time", "x", "y", "z") #Renaming columns
+```
+
+#Plot x versus z and add meaningful labels
+```{r}
+ggplot(data, aes(x, z))+
+  geom_path()+ #adding geom to track path
+  theme_bw()+ #Changing background colour
+  labs(y="Movement on z-axis", x = "Movement in x-axis") #Adding labels
+```
+
+
+#Correct the z dimension by flipping all values so that more positive ones are shown upwards, i.e. like the movement was actually performed. Make a new plot of x and z
+```{r}
+#Flipping the z-axis by subtracting the values from 0, this reverts the signs
+data$flipped_z <- 0-data$z
+
+ggplot(data, aes(x, flipped_z))+
+  geom_path()+ #adding geom to track path
+  theme_bw()+ #Changing background colour
+  labs(y="Movement on z-axis", x = "Movement in x-axis") #Adding labels
+```
+
+#Calculate z velocity and plot it against time
+Velocity can be calculated using the following formula: Velocity = distance difference / time difference. Thus, we need to calculate the distance difference and time difference, before calculating velocity. 
+
+```{r calculating z velocity}
+#Calculating distance difference on the z-axis
+data$distance_dif_z <- data$z-lag(data$z) #subtracting a given row with the value of the previous row, the lag function supplies the previous row  
+
+#Calculating time difference
+data$time_dif_z <- data$time-lag(data$time) #subtracting a given row with the value of the previous row
+
+#Calculating velocity
+data$velocity_z <- data$distance_dif_z /data$time_dif_z #Using the velocity formula
+
+#Plotting z velocity against time
+plot(data$time, data$velocity_z)
+
+ggplot(data, aes(time, z))+
+  geom_path()+ #adding geom to track path
+  theme_bw()+ #Changing background colour
+  labs(y="Velocity on z-axis", x = "Time") #Adding labels
+
+```
+
+#Apply a Butterworth filter to z velocity with reasonable parameters. Plot the filtered velocity on top of the unfiltered one
+```{r applying butterworth filter}
+bf <- butter(4, 0.1, type ='low') #defining butterworth filter with values used in Vesper et al. (2017)
+
+data$velocity_z_f <- filtfilt(bf,data$velocity_z) #Applying filter to z variable
+
+
+#Plotting filtered velocity on top of unfiltered
+ggplot(data, aes(time, velocity_z_f))+ 
+  geom_path(aes(col = "Filtered"))+ #adding geom to track path of filtered z velocity
+  geom_path(aes(time, velocity_z, col = "Unfiltered")) + #adding geom to track path of unfilteres z velocity
+  theme_bw()+ #Changing background colour
+  labs(y="Velocity on z-axis", x = "Time") + #Adding labels
+  scale_colour_manual(name="Velocity",
+    values=c(Filtered="red", Unfiltered="blue")) +  #Adding legend
+  ggtitle("Velocity of Z") #Adding title
+  
+
+
+```
+
+
+#Make a final plot with z and the nicely filtered velocity over time.
+```{r}
+#Plotting filtered velocity on top of unfiltered
+ggplot()+
+  geom_path(data = data, aes(time, velocity_z_f, col = "Velocity"))+ #adding geom to trace smoothed velocity over time
+  geom_path(data = data, aes(time, flipped_z, col = "Position")) + #adding geom to track z-position over time
+  theme_bw()+ #Changing background colour
+  labs(y="Velocity and position, respectively", x = "Time") + #Adding labels 
+  scale_colour_manual(name="Colour",
+    values=c(Position="red", Velocity="blue")) +  #Adding legend and colours
+  ggtitle("Velocity and Z-position over time") #Adding title
+
+```
+
+
+
